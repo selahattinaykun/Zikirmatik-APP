@@ -1,0 +1,6 @@
+{
+  "name": "Zikirmatik App",
+  "description": "Zikir, dua ve sure takibi için günlük ibadet uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
