@@ -51,6 +51,13 @@ fun SurelerScreen() {
                 
                 sure.audioResId?.let { resId ->
                     val player = MediaPlayer()
+                    player.setAudioAttributes(
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    player.setVolume(1.0f, 1.0f)
                     val afd = context.resources.openRawResourceFd(resId)
                     if (afd != null) {
                         player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
