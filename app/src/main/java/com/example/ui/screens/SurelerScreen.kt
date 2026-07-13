@@ -1,6 +1,6 @@
 package com.example.ui.screens
 
-import android.media.MediaPlayer
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.StaticData
 import com.example.data.Surah
 
@@ -25,62 +31,84 @@ fun SurelerScreen() {
     val context = LocalContext.current
     var currentlyPlayingSurah by remember { mutableStateOf<Surah?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
-            mediaPlayer?.release()
+            exoPlayer?.release()
         }
     }
 
     val playAudio = { sure: Surah ->
         try {
             if (currentlyPlayingSurah == sure && isPlaying) {
-                mediaPlayer?.pause()
+                exoPlayer?.pause()
                 isPlaying = false
             } else if (currentlyPlayingSurah == sure && !isPlaying) {
-                mediaPlayer?.start()
+                exoPlayer?.play()
                 isPlaying = true
             } else {
                 try {
-                    mediaPlayer?.stop()
+                    exoPlayer?.stop()
                 } catch (e: Exception) {}
                 try {
-                    mediaPlayer?.release()
+                    exoPlayer?.release()
                 } catch (e: Exception) {}
-                
+
                 sure.audioResId?.let { resId ->
-                    val player = MediaPlayer()
-                    player.setAudioAttributes(
-                        android.media.AudioAttributes.Builder()
-                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build()
-                    )
-                    player.setVolume(1.0f, 1.0f)
-                    val afd = context.resources.openRawResourceFd(resId)
-                    if (afd != null) {
-                        player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                        afd.close()
-                        player.setOnCompletionListener {
+                    val player = ExoPlayer.Builder(context).build()
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build()
+                    player.setAudioAttributes(audioAttributes, true)
+                    player.volume = 1f
+
+                    val uri = try {
+                        val resourceName = context.resources.getResourceEntryName(resId)
+                        val cacheFile = java.io.File(context.cacheDir, "$resourceName.mp3")
+                        if (!cacheFile.exists()) {
+                            context.resources.openRawResource(resId).use { inputStream ->
+                                java.io.FileOutputStream(cacheFile).use { outputStream ->
+                                    inputStream.copyTo(outputStream)
+                                }
+                            }
+                        }
+                        Uri.fromFile(cacheFile)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Uri.parse("android.resource://${context.packageName}/$resId")
+                    }
+                    val mediaItem = MediaItem.fromUri(uri)
+
+                    player.setMediaItem(mediaItem)
+                    player.prepare()
+
+                    player.addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (playbackState == Player.STATE_ENDED) {
+                                isPlaying = false
+                                currentlyPlayingSurah = null
+                            }
+                        }
+                        override fun onPlayerError(error: PlaybackException) {
+                            super.onPlayerError(error)
                             isPlaying = false
                             currentlyPlayingSurah = null
+                            android.widget.Toast.makeText(context, "Ses hatası: ${error.message}", android.widget.Toast.LENGTH_SHORT).show()
                         }
-                        player.prepare()
-                        player.start()
-                        
-                        mediaPlayer = player
-                        currentlyPlayingSurah = sure
-                        isPlaying = true
-                    } else {
-                        android.widget.Toast.makeText(context, "Ses dosyası bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                    })
+                    player.playWhenReady = true
+
+                    exoPlayer = player
+                    currentlyPlayingSurah = sure
+                    isPlaying = true
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            try { mediaPlayer?.release() } catch (ex: Exception) {}
-            mediaPlayer = null
+            try { exoPlayer?.release() } catch (ex: Exception) {}
+            exoPlayer = null
             isPlaying = false
             currentlyPlayingSurah = null
             android.widget.Toast.makeText(context, "Hata oluştu: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
@@ -89,12 +117,12 @@ fun SurelerScreen() {
 
     val stopAudio = {
         try {
-            mediaPlayer?.stop()
+            exoPlayer?.stop()
         } catch (e: Exception) {}
         try {
-            mediaPlayer?.release()
+            exoPlayer?.release()
         } catch (e: Exception) {}
-        mediaPlayer = null
+        exoPlayer = null
         currentlyPlayingSurah = null
         isPlaying = false
     }
