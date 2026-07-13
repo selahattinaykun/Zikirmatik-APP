@@ -34,31 +34,55 @@ fun SurelerScreen() {
     }
 
     val playAudio = { sure: Surah ->
-        if (currentlyPlayingSurah == sure && isPlaying) {
-            mediaPlayer?.pause()
-            isPlaying = false
-        } else if (currentlyPlayingSurah == sure && !isPlaying) {
-            mediaPlayer?.start()
-            isPlaying = true
-        } else {
-            mediaPlayer?.release()
-            sure.audioResId?.let { resId ->
-                mediaPlayer = MediaPlayer.create(context, resId).apply {
-                    setOnCompletionListener {
-                        isPlaying = false
-                        currentlyPlayingSurah = null
-                    }
-                    start()
-                }
-                currentlyPlayingSurah = sure
+        try {
+            if (currentlyPlayingSurah == sure && isPlaying) {
+                mediaPlayer?.pause()
+                isPlaying = false
+            } else if (currentlyPlayingSurah == sure && !isPlaying) {
+                mediaPlayer?.start()
                 isPlaying = true
+            } else {
+                try {
+                    mediaPlayer?.stop()
+                } catch (e: Exception) {}
+                try {
+                    mediaPlayer?.release()
+                } catch (e: Exception) {}
+                
+                sure.audioResId?.let { resId ->
+                    val player = MediaPlayer.create(context, resId)
+                    if (player != null) {
+                        mediaPlayer = player.apply {
+                            setOnCompletionListener {
+                                isPlaying = false
+                                currentlyPlayingSurah = null
+                            }
+                            start()
+                        }
+                        currentlyPlayingSurah = sure
+                        isPlaying = true
+                    } else {
+                        android.widget.Toast.makeText(context, "Bu ses dosyası cihazda çalınamıyor.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            try { mediaPlayer?.release() } catch (ex: Exception) {}
+            mediaPlayer = null
+            isPlaying = false
+            currentlyPlayingSurah = null
+            android.widget.Toast.makeText(context, "Hata oluştu: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
     val stopAudio = {
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
+        try {
+            mediaPlayer?.stop()
+        } catch (e: Exception) {}
+        try {
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
         mediaPlayer = null
         currentlyPlayingSurah = null
         isPlaying = false
