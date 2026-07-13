@@ -1,6 +1,6 @@
 package com.example.ui.screens
 
-import android.net.Uri
+import android.media.MediaPlayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,9 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.StaticData
 import com.example.data.Surah
 
@@ -28,56 +25,55 @@ fun SurelerScreen() {
     val context = LocalContext.current
     var currentlyPlayingSurah by remember { mutableStateOf<Surah?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
-    var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
-            exoPlayer?.release()
+            mediaPlayer?.release()
         }
     }
 
     val playAudio = { sure: Surah ->
         try {
             if (currentlyPlayingSurah == sure && isPlaying) {
-                exoPlayer?.pause()
+                mediaPlayer?.pause()
                 isPlaying = false
             } else if (currentlyPlayingSurah == sure && !isPlaying) {
-                exoPlayer?.play()
+                mediaPlayer?.start()
                 isPlaying = true
             } else {
                 try {
-                    exoPlayer?.stop()
+                    mediaPlayer?.stop()
                 } catch (e: Exception) {}
                 try {
-                    exoPlayer?.release()
+                    mediaPlayer?.release()
                 } catch (e: Exception) {}
                 
                 sure.audioResId?.let { resId ->
-                    val player = ExoPlayer.Builder(context).build()
-                    val uri = Uri.parse("android.resource://${context.packageName}/$resId")
-                    val mediaItem = MediaItem.fromUri(uri)
-                    
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
-                    player.addListener(object : Player.Listener {
-                        override fun onPlaybackStateChanged(playbackState: Int) {
-                            if (playbackState == Player.STATE_ENDED) {
-                                isPlaying = false
-                                currentlyPlayingSurah = null
-                            }
+                    val player = MediaPlayer()
+                    val afd = context.resources.openRawResourceFd(resId)
+                    if (afd != null) {
+                        player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                        afd.close()
+                        player.setOnCompletionListener {
+                            isPlaying = false
+                            currentlyPlayingSurah = null
                         }
-                    })
-                    player.play()
-                    
-                    exoPlayer = player
-                    currentlyPlayingSurah = sure
-                    isPlaying = true
+                        player.prepare()
+                        player.start()
+                        
+                        mediaPlayer = player
+                        currentlyPlayingSurah = sure
+                        isPlaying = true
+                    } else {
+                        android.widget.Toast.makeText(context, "Ses dosyası bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            try { exoPlayer?.release() } catch (ex: Exception) {}
-            exoPlayer = null
+            try { mediaPlayer?.release() } catch (ex: Exception) {}
+            mediaPlayer = null
             isPlaying = false
             currentlyPlayingSurah = null
             android.widget.Toast.makeText(context, "Hata oluştu: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
@@ -86,12 +82,12 @@ fun SurelerScreen() {
 
     val stopAudio = {
         try {
-            exoPlayer?.stop()
+            mediaPlayer?.stop()
         } catch (e: Exception) {}
         try {
-            exoPlayer?.release()
+            mediaPlayer?.release()
         } catch (e: Exception) {}
-        exoPlayer = null
+        mediaPlayer = null
         currentlyPlayingSurah = null
         isPlaying = false
     }
