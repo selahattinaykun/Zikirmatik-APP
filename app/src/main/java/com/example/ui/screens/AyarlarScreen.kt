@@ -7,10 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -82,15 +79,52 @@ fun AyarlarScreen(viewModel: ZikirmatikViewModel) {
                         text = "Uygulama Güncellemesi",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
-                    Button(
-                        onClick = { updateManager.checkForUpdateAndDownload() },
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(16.dp)
+                    var updateUrlText by remember { mutableStateOf(updateManager.getUpdateUrl()) }
+                    
+                    OutlinedTextField(
+                        value = updateUrlText,
+                        onValueChange = { 
+                            updateUrlText = it
+                            updateManager.setUpdateUrl(it)
+                        },
+                        label = { Text("Güncelleme Sunucu Linki (APK)") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        singleLine = true,
+                        placeholder = { Text("https://github.com/saykun/ZikirmatikApp/releases/latest/download/app-release.apk") }
+                    )
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Güncelleme Kontrol Et", style = MaterialTheme.typography.titleMedium)
+                        Button(
+                            onClick = { 
+                                updateManager.checkForUpdateAndDownload(updateUrlText) 
+                            },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(12.dp)
+                        ) {
+                            Text("Denetle", style = MaterialTheme.typography.bodyLarge)
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { 
+                                val defaultUrl = "https://github.com/saykun/ZikirmatikApp/releases/latest/download/app-release.apk"
+                                updateUrlText = defaultUrl
+                                updateManager.setUpdateUrl(defaultUrl)
+                            },
+                            modifier = Modifier.weight(0.8f),
+                            contentPadding = PaddingValues(12.dp)
+                        ) {
+                            Text("Sıfırla", style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
                 }
             }
