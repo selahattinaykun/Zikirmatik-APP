@@ -10,17 +10,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.example.data.AppTheme
 import com.example.ui.ZikirmatikViewModel
+import com.example.utils.UpdateManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AyarlarScreen(viewModel: ZikirmatikViewModel) {
     val currentTheme by viewModel.currentTheme.collectAsState()
+    val context = LocalContext.current
+    val updateManager = remember { UpdateManager(context) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Ayarlar") }) }
@@ -68,6 +73,24 @@ fun AyarlarScreen(viewModel: ZikirmatikViewModel) {
                                 )
                             }
                         }
+                    }
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Uygulama Güncellemesi",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    Button(
+                        onClick = { updateManager.checkForUpdateAndDownload() },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Text("Güncelleme Kontrol Et", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
